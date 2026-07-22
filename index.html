@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GraficosNet — Controle de Produção</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#171513;
+  --bg-2:#1d1b18;
+  --surface:#242220;
+  --surface-2:#2b2925;
+  --surface-hi:#322f2a;
+  --brass:#c9a15d;
+  --brass-bright:#e6c583;
+  --brass-dim:#8a7143;
+  --ink:#ece7de;
+  --ink-muted:#a39a8a;
+  --ink-faint:#726a5c;
+  --line:#3a372f;
+  --ok:#8faa7c;
+  --warn:#d3a24e;
+  --bad:#c1665a;
+  --shadow-out: 7px 7px 14px #100f0d, -7px -7px 14px #242119;
+  --shadow-in: inset 4px 4px 8px #100f0d, inset -4px -4px 8px #242119;
+  --shadow-sm: 3px 3px 6px #100f0d, -3px -3px 6px #242119;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  padding-bottom:80px;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--brass-dim);color:#111;}
+h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:600;letter-spacing:.01em;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* ===== Header ===== */
+header.app-header{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(180deg,#1a1816 0%, #171513 100%);
+  border-bottom:1px solid var(--line);
+  padding:14px 18px 12px;
+  display:flex;align-items:center;gap:12px;
+}
+.brand-dial{
+  width:38px;height:38px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #3a362e, #151310 70%);
+  border:1.5px solid var(--brass-dim);
+  position:relative;flex:0 0 auto;
+  box-shadow:0 0 0 1px #0c0b0a, var(--shadow-sm);
+}
+.brand-dial::before,.brand-dial::after{
+  content:'';position:absolute;background:var(--brass);
+}
+.brand-dial::before{width:2px;height:10px;top:6px;left:50%;transform:translateX(-50%);border-radius:2px;}
+.brand-dial::after{width:7px;height:2px;top:50%;left:19px;transform:translateY(-50%);border-radius:2px;}
+.brand-text h1{font-size:22px;color:var(--brass-bright);line-height:1.1;}
+.brand-text span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);}
+
+/* ===== Hamburger menu ===== */
+.menu-btn{
+  margin-left:auto;width:38px;height:38px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  cursor:pointer;box-shadow:var(--shadow-sm);flex:0 0 auto;
+}
+.menu-btn span{width:18px;height:2px;background:var(--brass);border-radius:2px;}
+.menu-btn:active{transform:scale(.96);}
+
+.drawer-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+}
+.drawer-backdrop.show{opacity:1;pointer-events:auto;}
+
+.drawer{
+  position:fixed;top:0;right:0;height:100%;width:min(78vw,300px);
+  background:var(--bg-2);border-left:1px solid var(--line);
+  z-index:95;transform:translateX(100%);transition:transform .22s ease;
+  display:flex;flex-direction:column;box-shadow:-8px 0 20px rgba(0,0,0,.4);
+}
+.drawer.show{transform:translateX(0);}
+.drawer-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid var(--line);
+  font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--brass-bright);
+}
+.drawer-close{
+  background:none;border:none;color:var(--ink-muted);font-size:16px;cursor:pointer;padding:4px 8px;
+}
+.drawer-item{
+  display:flex;align-items:center;gap:10px;
+  width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);
+  color:var(--ink);font-size:14px;font-weight:600;padding:16px 18px;cursor:pointer;
+}
+.drawer-item:active{background:var(--surface);}
+.drawer-item.active{background:var(--surface-hi);color:var(--brass-bright);}
+.drawer-item-icon{color:var(--brass);font-size:16px;}
+.drawer-item-highlight{background:var(--surface-2);}
+.drawer-item-highlight .drawer-item-icon{color:var(--brass-bright);}
+.drawer-divider{height:1px;background:var(--line);margin:4px 0 6px;}
+.drawer{overflow-y:auto;}
+.drawer-user{
+  padding:12px 18px;border-bottom:1px solid var(--line);
+  font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.drawer-user b{color:var(--brass-bright);font-family:'Inter';text-transform:none;letter-spacing:0;font-size:13px;}
+.drawer-logout{
+  margin-top:auto;display:flex;align-items:center;gap:10px;
+  width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--line);
+  color:var(--bad);font-size:14px;font-weight:600;padding:16px 18px;cursor:pointer;
+}
+
+/* ===== Login ===== */
+.login-overlay{
+  position:fixed;inset:0;z-index:300;
+  background:radial-gradient(circle at 50% 30%, #211e1a 0%, #131110 75%);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.login-card{
+  width:100%;max-width:340px;background:var(--bg-2);border:1px solid var(--line);
+  border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-out);
+  text-align:center;
+}
+.login-card .brand-dial{margin:0 auto 14px;}
+.login-card h1{font-size:24px;color:var(--brass-bright);margin-bottom:2px;}
+.login-card .sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:22px;}
+.login-card label{text-align:left;}
+.login-error{
+  color:var(--bad);font-size:12px;margin-top:10px;min-height:16px;
+}
+
+/* ===== Nav ===== */
+nav.tabs{
+  display:flex;gap:6px;overflow-x:auto;padding:10px 12px;
+  background:var(--bg-2);border-bottom:1px solid var(--line);
+  position:sticky;top:66px;z-index:40;
+  scrollbar-width:none;
+}
+nav.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  flex:0 0 auto;padding:9px 14px;border-radius:999px;
+  background:var(--surface);color:var(--ink-muted);
+  border:1px solid var(--line);font-size:12.5px;font-weight:600;
+  letter-spacing:.02em;cursor:pointer;white-space:nowrap;
+  transition:.15s;
+}
+.tab-btn.active{background:var(--brass);color:#1a1510;border-color:var(--brass);box-shadow:var(--shadow-sm);}
+.tab-btn:not(.active):active{transform:scale(.97);}
+
+main{max-width:960px;margin:0 auto;padding:16px;}
+.view{display:none;animation:fade .2s ease;}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;translateY(0);}}
+
+.section-title{display:flex;align-items:baseline;justify-content:space-between;margin:22px 0 10px;}
+.section-title h2{font-size:19px;color:var(--brass-bright);}
+.section-title .count{font-size:11px;color:var(--ink-faint);}
+.section-title:first-child{margin-top:0;}
+
+/* ===== Cards ===== */
+.card{
+  background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--shadow-out);padding:16px;margin-bottom:14px;
+  border:1px solid rgba(255,255,255,.02);
+}
+.card h3{font-size:15px;color:var(--ink);margin-bottom:10px;font-weight:600;font-family:'Inter';}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:560px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+label{display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;margin-top:8px;font-weight:600;}
+input,select,textarea{
+  width:100%;background:var(--bg-2);color:var(--ink);
+  border:1px solid var(--line);border-radius:9px;
+  padding:10px 12px;font-size:14px;font-family:'Inter';
+  box-shadow:var(--shadow-in);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brass-dim);outline-offset:1px;}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--brass) 50%),linear-gradient(135deg,var(--brass) 50%,transparent 50%);background-position:calc(100% - 18px) center, calc(100% - 13px) center;background-size:5px 5px;background-repeat:no-repeat;}
+
+button{
+  font-family:'Inter';font-weight:600;font-size:13px;
+  border:none;border-radius:9px;padding:10px 16px;
+  cursor:pointer;transition:.12s;letter-spacing:.01em;
+}
+.btn-primary{background:var(--brass);color:#1a1510;box-shadow:var(--shadow-sm);}
+.btn-primary:active{transform:scale(.97);}
+.btn-ghost{background:var(--surface-2);color:var(--ink);box-shadow:var(--shadow-sm);}
+.btn-danger{background:var(--surface-2);color:var(--bad);box-shadow:var(--shadow-sm);}
+.btn-sm{padding:6px 10px;font-size:11.5px;border-radius:7px;}
+.btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+
+/* ===== Tables ===== */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--line);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  background:var(--surface-2);color:var(--brass-bright);
+  text-align:left;padding:9px 10px;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.05em;font-weight:700;
+  white-space:nowrap;
+}
+td{padding:9px 10px;border-top:1px solid var(--line);color:var(--ink);white-space:nowrap;}
+tr:hover td{background:rgba(201,161,93,.04);}
+.empty-row td{color:var(--ink-faint);font-style:italic;text-align:center;padding:22px;}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
+.badge-pending{background:rgba(211,162,78,.15);color:var(--warn);}
+.badge-done{background:rgba(143,170,124,.15);color:var(--ok);}
+.badge-loss{background:rgba(193,102,90,.15);color:var(--bad);}
+
+/* ===== Dashboard dials ===== */
+.dial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+.dial-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-out);padding:16px;text-align:center;}
+.dial{
+  width:84px;height:84px;border-radius:50%;margin:0 auto 10px;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  background:conic-gradient(var(--brass) calc(var(--pct,0)*1%), var(--surface-2) 0);
+}
+.dial::before{content:'';position:absolute;width:64px;height:64px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow-in);}
+.dial span{position:relative;font-family:'JetBrains Mono';font-size:15px;font-weight:700;color:var(--brass-bright);}
+.dial-card .label{font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;}
+.dial-card .sub{font-size:10px;color:var(--ink-faint);margin-top:2px;}
+
+/* ===== BOM builder ===== */
+.bom-row{display:grid;grid-template-columns:1.4fr 1fr 0.7fr auto;gap:8px;align-items:end;margin-top:8px;}
+@media(max-width:560px){.bom-row{grid-template-columns:1fr;}}
+.bom-list-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg-2);border-radius:8px;margin-top:6px;font-size:12.5px;}
+.serial{font-family:'JetBrains Mono';font-size:11px;color:var(--brass-dim);}
+
+.hint{font-size:11.5px;color:var(--ink-faint);margin-top:6px;line-height:1.5;}
+.divider{height:1px;background:var(--line);margin:16px 0;}
+
+footer{
+  text-align:center;padding:26px 16px 10px;color:var(--ink-faint);font-size:11px;line-height:1.8;
+}
+footer b{color:var(--brass-dim);}
+footer a{color:var(--brass-dim);text-decoration:none;}
+
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surface-hi);color:var(--ink);border:1px solid var(--brass-dim);
+  padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-out);
+  opacity:0;pointer-events:none;transition:.25s;z-index:100;max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.subtab-btn{padding:6px 12px;border-radius:8px;background:var(--surface-2);color:var(--ink-muted);border:1px solid var(--line);font-size:11.5px;font-weight:600;cursor:pointer;}
+.subtab-btn.active{background:var(--brass-dim);color:#1a1510;}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(10,9,8,.7);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--surface);border-radius:18px 18px 0 0;padding:20px;width:100%;max-width:480px;box-shadow:var(--shadow-out);max-height:85vh;overflow-y:auto;}
+@media(min-width:600px){.modal-backdrop{align-items:center;}.modal{border-radius:16px;}}
+.modal h3{color:var(--brass-bright);font-size:17px;margin-bottom:12px;}
+
+/* ===== Import Excel ===== */
+.progress-track{width:100%;height:10px;border-radius:999px;background:var(--bg-2);box-shadow:var(--shadow-in);overflow:hidden;margin:10px 0;}
+.progress-fill{height:100%;background:var(--brass);width:0%;transition:width .15s ease;}
+.import-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;}
+.import-stat{background:var(--bg-2);border-radius:9px;padding:10px 12px;text-align:center;}
+.import-stat b{display:block;font-size:19px;color:var(--brass-bright);font-family:'JetBrains Mono';}
+.import-stat span{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;}
+.import-error-row{font-size:12px;color:var(--bad);padding:4px 0;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="brand-dial"></div>
+    <h1>GráficosNet</h1>
+    <div class="sub">Controle de Produção · Relógios</div>
+    <label>Usuário</label>
+    <input id="login-usuario" type="text" autocomplete="username" placeholder="Usuário">
+    <label>Senha</label>
+    <input id="login-senha" type="password" autocomplete="current-password" placeholder="Senha">
+    <div class="btn-row"><button class="btn-primary" style="width:100%;justify-content:center;" onclick="tentarLogin()">Entrar</button></div>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="brand-dial"></div>
+  <div class="brand-text">
+    <h1>GráficosNet</h1>
+    <span>Controle de Produção · Relógios</span>
+  </div>
+  <button class="menu-btn" id="menu-btn" aria-label="Abrir menu" onclick="toggleDrawer()">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <span>Menu</span>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-user">Logado como <b id="drawer-usuario-nome">—</b></div>
+  <button class="drawer-item drawer-item-highlight" data-view="backup" onclick="switchView('backup'); closeDrawer();">
+    <span class="drawer-item-icon">⇄</span> Backup e Restore
+  </button>
+  <div class="drawer-divider"></div>
+  <button class="drawer-item" data-view="dashboard" onclick="switchView('dashboard'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Painel
+  </button>
+  <button class="drawer-item" data-view="compras" onclick="switchView('compras'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Compras
+  </button>
+  <button class="drawer-item" data-view="producao" onclick="switchView('producao'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Produção
+  </button>
+  <button class="drawer-item" data-view="montagem" onclick="switchView('montagem'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Montagem
+  </button>
+  <button class="drawer-item" data-view="expedicao" onclick="switchView('expedicao'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Expedição
+  </button>
+  <button class="drawer-item" data-view="estoques" onclick="switchView('estoques'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Estoques
+  </button>
+  <button class="drawer-item" data-view="cadastros" onclick="switchView('cadastros'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Cadastros
+  </button>
+  <button class="drawer-item" data-view="relatorios" onclick="switchView('relatorios'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Relatórios
+  </button>
+  <button class="drawer-item" data-view="ajustes" onclick="switchView('ajustes'); closeDrawer();">
+    <span class="drawer-item-icon">◆</span> Ajustes
+  </button>
+  <button class="drawer-logout" onclick="fazerLogout()">
+    <span class="drawer-item-icon">⏻</span> Sair
+  </button>
+</aside>
+
+<nav class="tabs" id="tabs">
+  <button class="tab-btn active" data-view="dashboard">Painel</button>
+  <button class="tab-btn" data-view="compras">Compras</button>
+  <button class="tab-btn" data-view="producao">Produção</button>
+  <button class="tab-btn" data-view="montagem">Montagem</button>
+  <button class="tab-btn" data-view="expedicao">Expedição</button>
+  <button class="tab-btn" data-view="estoques">Estoques</button>
+  <button class="tab-btn" data-view="cadastros">Cadastros</button>
+  <button class="tab-btn" data-view="relatorios">Relatórios</button>
+  <button class="tab-btn" data-view="ajustes">Ajustes</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="section-title"><h2>Painel Geral</h2><span class="count" id="dash-date"></span></div>
+    <div class="dial-grid" id="dash-dials"></div>
+
+    <div class="section-title"><h2>Últimas Movimentações</h2></div>
+    <div class="card">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Usuário</th></tr></thead>
+        <tbody id="dash-historico"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- COMPRAS -->
+  <section class="view" id="view-compras">
+    <div class="section-title"><h2>Novo Pedido de Compra</h2></div>
+    <div class="card">
+      <div class="grid-2">
+        <div><label>Fornecedor</label><select id="pc-fornecedor"></select></div>
+        <div><label>Matéria-Prima</label><select id="pc-materia"></select></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Quantidade</label><input type="number" id="pc-quantidade" min="0" step="0.01" placeholder="0"></div>
+        <div><label>Valor Unitário (R$)</label><input type="number" id="pc-valor" min="0" step="0.01" placeholder="0,00"></div>
+      </div>
+      <div class="btn-row"><button class="btn-primary" onclick="criarPedidoCompra()">Registrar Pedido</button></div>
+    </div>
+
+    <div class="section-title"><h2>Pedidos Pendentes</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Fornecedor</th><th>Material</th><th>Qtd</th><th>Total</th><th>Data</th><th></th></tr></thead>
+      <tbody id="tbl-pc-pendentes"></tbody>
+    </table></div></div>
+
+    <div class="section-title"><h2>Histórico de Compras</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Fornecedor</th><th>Material</th><th>Qtd</th><th>Status</th><th>Recebido por</th><th>Data Receb.</th></tr></thead>
+      <tbody id="tbl-pc-historico"></tbody>
+    </table></div></div>
+  </section>
+
+  <!-- PRODUÇÃO -->
+  <section class="view" id="view-producao">
+    <div class="section-title"><h2>Nova Ordem de Produção</h2></div>
+    <div class="card">
+      <div class="grid-2">
+        <div><label>Produtor Terceirizado</label><select id="op-produtor"></select></div>
+        <div><label>Produto (Semiacabado)</label><select id="op-produto"></select></div>
+      </div>
+      <label>Quantidade Solicitada</label><input type="number" id="op-quantidade" min="0" step="1" placeholder="0">
+      <div class="btn-row"><button class="btn-primary" onclick="criarOrdemProducao()">Criar Ordem</button></div>
+    </div>
+
+    <div class="section-title"><h2>Ordens Abertas</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Produtor</th><th>Produto</th><th>Solicitado</th><th>Recebido</th><th>Restante</th><th></th></tr></thead>
+      <tbody id="tbl-op-abertas"></tbody>
+    </table></div></div>
+
+    <div class="section-title"><h2>Ordens Concluídas</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Produtor</th><th>Produto</th><th>Total</th><th>Entregas</th></tr></thead>
+      <tbody id="tbl-op-concluidas"></tbody>
+    </table></div></div>
+  </section>
+
+  <!-- MONTAGEM -->
+  <section class="view" id="view-montagem">
+    <div class="section-title"><h2>Nova Ordem de Montagem</h2></div>
+    <div class="card">
+      <div class="grid-2">
+        <div><label>Montador</label><select id="om-montador"></select></div>
+        <div><label>Modelo de Relógio</label><select id="om-modelo" onchange="previewBOM()"></select></div>
+      </div>
+      <label>Quantidade de Kits a Enviar</label><input type="number" id="om-quantidade" min="0" step="1" placeholder="0">
+      <div id="om-bom-preview" class="hint"></div>
+      <div class="btn-row"><button class="btn-primary" onclick="criarOrdemMontagem()">Enviar Ordem (baixa estoque)</button></div>
+    </div>
+
+    <div class="section-title"><h2>Ordens Enviadas (aguardando retorno)</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Montador</th><th>Modelo</th><th>Cód. Barras</th><th>Kits Enviados</th><th>Data Envio</th><th></th></tr></thead>
+      <tbody id="tbl-om-abertas"></tbody>
+    </table></div></div>
+
+    <div class="section-title"><h2>Ordens Concluídas</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Montador</th><th>Modelo</th><th>Cód. Barras</th><th>Enviado</th><th>Prontos</th><th>Perdas</th></tr></thead>
+      <tbody id="tbl-om-concluidas"></tbody>
+    </table></div></div>
+  </section>
+
+  <!-- EXPEDIÇÃO -->
+  <section class="view" id="view-expedicao">
+    <div class="section-title"><h2>Nova Expedição</h2></div>
+    <div class="card">
+      <label>Cliente</label><select id="ex-cliente"></select>
+      <div class="divider"></div>
+      <div class="grid-3">
+        <div><label>Modelo</label><select id="ex-modelo"></select></div>
+        <div><label>Quantidade</label><input type="number" id="ex-quantidade" min="0" step="1" placeholder="0"></div>
+        <div style="align-self:end;"><button class="btn-ghost" style="width:100%" onclick="adicionarItemExpedicao()">+ Adicionar Item</button></div>
+      </div>
+      <div id="ex-itens-list" style="margin-top:10px;"></div>
+      <div class="btn-row"><button class="btn-primary" onclick="confirmarExpedicao()">Confirmar Expedição (baixa estoque)</button></div>
+    </div>
+
+    <div class="section-title"><h2>Histórico de Expedições</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Cliente</th><th>Itens</th><th>Data</th></tr></thead>
+      <tbody id="tbl-expedicoes"></tbody>
+    </table></div></div>
+  </section>
+
+  <!-- ESTOQUES -->
+  <section class="view" id="view-estoques">
+    <div class="section-title"><h2>Matéria-Prima</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Material</th><th>Unidade</th><th>Quantidade</th></tr></thead><tbody id="tbl-est-materia"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Produção em Terceiros (pendente)</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Produtor</th><th>Pendente</th></tr></thead><tbody id="tbl-est-terceiros"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Produtos Semiacabados</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Unidade</th><th>Quantidade</th></tr></thead><tbody id="tbl-est-semi"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Produtos Acabados</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Modelo</th><th>Cód. Barras</th><th>Quantidade</th></tr></thead><tbody id="tbl-est-acabados"></tbody></table></div></div>
+  </section>
+
+  <!-- CADASTROS -->
+  <section class="view" id="view-cadastros">
+    <div class="card" id="import-excel-card" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div>
+          <h3 style="margin-bottom:2px;">📥 Importar Catálogo (Excel)</h3>
+          <p class="hint" style="margin:0;">Importa produtos com código de barras de um arquivo .xlsx para o catálogo (Modelos).</p>
+        </div>
+        <label class="btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin:0;">
+          📥 Importar Excel
+          <input type="file" id="import-excel-input" accept=".xlsx,.xls" style="display:none" onchange="handleImportExcelFile(event)">
+        </label>
+      </div>
+      <div class="hint" id="import-excel-undo-status" style="margin-top:8px;"></div>
+    </div>
+    <div class="subtabs" id="cad-subtabs"></div>
+    <div id="cad-content"></div>
+  </section>
+
+  <!-- RELATÓRIOS -->
+  <section class="view" id="view-relatorios">
+    <div class="section-title"><h2>Estoque de Matéria-Prima</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Material</th><th>Unidade</th><th>Quantidade</th></tr></thead><tbody id="rel-materia"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Estoque em Produção (terceiros)</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Produtor</th><th>Pendente</th></tr></thead><tbody id="rel-terceiros"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Estoque de Semiacabados</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Unidade</th><th>Quantidade</th></tr></thead><tbody id="rel-semi"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Estoque de Produtos Acabados</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Modelo</th><th>Cód. Barras</th><th>Quantidade</th></tr></thead><tbody id="rel-acabados"></tbody></table></div></div>
+
+    <div class="section-title"><h2>Histórico Completo de Movimentações</h2></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Usuário</th></tr></thead><tbody id="rel-historico"></tbody></table></div></div>
+
+  </section>
+
+  <!-- AJUSTES -->
+  <section class="view" id="view-ajustes">
+    <div class="section-title"><h2>Ajuste Manual de Estoque</h2></div>
+    <div class="card">
+      <label>Tipo de Estoque</label>
+      <select id="aj-tipo" onchange="popularItensAjuste()">
+        <option value="materiaPrima">Matéria-Prima</option>
+        <option value="semiacabado">Produto Semiacabado</option>
+        <option value="acabado">Produto Acabado</option>
+      </select>
+      <label>Item</label><select id="aj-item" onchange="mostrarQtdAtual()"></select>
+      <div class="hint">Quantidade atual: <b class="mono" id="aj-atual">—</b></div>
+      <label>Nova Quantidade</label><input type="number" id="aj-nova" step="0.01">
+      <label>Motivo</label>
+      <select id="aj-motivo">
+        <option>Devolução</option>
+        <option>Erro Operacional</option>
+        <option>Perda não registrada</option>
+        <option>Acerto de Inventário</option>
+        <option>Outro</option>
+      </select>
+      <div class="btn-row"><button class="btn-primary" onclick="salvarAjuste()">Salvar Ajuste</button></div>
+    </div>
+
+    <div class="section-title"><h2>Histórico de Ajustes</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>Data</th><th>Estoque</th><th>Item</th><th>Antes</th><th>Depois</th><th>Motivo</th><th>Usuário</th></tr></thead>
+      <tbody id="tbl-ajustes"></tbody>
+    </table></div></div>
+  </section>
+
+  <!-- BACKUP -->
+  <section class="view" id="view-backup">
+    <div class="section-title"><h2>Backup dos Dados</h2></div>
+    <div class="card">
+      <p class="hint" style="margin-bottom:10px;">Gera um arquivo .json com todos os dados atuais (cadastros, ordens, estoques e histórico) armazenados neste dispositivo.</p>
+      <div class="btn-row"><button class="btn-primary" onclick="exportarBackup()">⬇ Exportar Backup (JSON)</button></div>
+      <div class="hint" id="backup-status" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="section-title"><h2>Restaurar Backup</h2></div>
+    <div class="card">
+      <label>Modo de importação</label>
+      <select id="backup-modo">
+        <option value="mesclar">Mesclar com dados atuais (recomendado)</option>
+        <option value="substituir">Substituir todos os dados atuais</option>
+      </select>
+      <p class="hint" style="margin:8px 0 12px;">
+        <b>Mesclar:</b> combina os registros do arquivo com os já existentes, sem apagar nada (registros com mesmo ID são atualizados pelo arquivo).<br>
+        <b>Substituir:</b> apaga tudo que existe agora e coloca no lugar apenas o que está no arquivo. Ação irreversível.
+      </p>
+      <div class="btn-row">
+        <label class="btn-ghost" style="cursor:pointer;display:inline-block;">⬆ Escolher Arquivo de Backup<input type="file" id="backup-file-input" accept="application/json,.json" style="display:none" onchange="handleBackupFile(event)"></label>
+      </div>
+    </div>
+
+    <div class="section-title"><h2>Resumo dos Dados Atuais</h2></div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>Categoria</th><th>Registros</th></tr></thead>
+      <tbody id="tbl-backup-resumo"></tbody>
+    </table></div></div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<footer>
+  Desenvolvido por <b>GraficosNet.com</b> — Consultoria Financeira Estratégica &amp; Sistema da Informação.<br>
+  WhatsApp: <a href="https://wa.me/5511956401077" target="_blank">(11) 95640-1077</a> ·
+  <a href="https://graficosnet.com" target="_blank">graficosnet.com</a><br>
+  Dados armazenados localmente neste dispositivo.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ============================= DB ============================= */
+const DB_KEY = 'chronoflow_db_v1';
+function defaultDB(){
+  return {
+    fornecedores:[], materiasPrimas:[], produtores:[], produtosSemiacabados:[],
+    montadores:[], clientes:[], modelosRelogio:[],
+    pedidosCompra:[], ordensProducao:[], ordensMontagem:[], expedicoes:[],
+    estoqueMateriaPrima:{}, estoqueSemiacabados:{}, estoqueAcabados:{},
+    historico:[], ajustes:[]
+  };
+}
+let db = load();
+function load(){
+  try{ const raw = localStorage.getItem(DB_KEY); return raw? JSON.parse(raw): defaultDB(); }
+  catch(e){ return defaultDB(); }
+}
+function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function uid(){ return 'ID' + Math.random().toString(36).slice(2,7).toUpperCase(); }
+function nowISO(){ return new Date().toISOString(); }
+function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function fmtMoney(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function addHistorico(tipo, desc){
+  db.historico.unshift({id:uid(), data:nowISO(), tipo, desc, usuario: currentUser || 'Rodrigo'});
+  save();
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(window._toastTimer); window._toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+/* ============================= LOGIN / AUTENTICAÇÃO ============================= */
+const AUTH_KEY = 'chronoflow_auth_v1';
+const APP_USUARIO = 'Rodrigo';
+const APP_SENHA = '123';
+let currentUser = null;
+
+function checkAuth(){
+  try{
+    const raw = sessionStorage.getItem(AUTH_KEY);
+    const auth = raw ? JSON.parse(raw) : null;
+    if(auth && auth.usuario){
+      currentUser = auth.usuario;
+      document.getElementById('login-overlay').style.display='none';
+      const nameEl = document.getElementById('drawer-usuario-nome');
+      if(nameEl) nameEl.textContent = currentUser;
+      return true;
+    }
+  }catch(e){}
+  document.getElementById('login-overlay').style.display='flex';
+  return false;
+}
+function tentarLogin(){
+  const usuario = document.getElementById('login-usuario').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const errEl = document.getElementById('login-error');
+  if(usuario === APP_USUARIO && senha === APP_SENHA){
+    currentUser = usuario;
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify({usuario, entradaEm: nowISO()}));
+    document.getElementById('login-overlay').style.display='none';
+    document.getElementById('login-error').textContent='';
+    document.getElementById('login-usuario').value='';
+    document.getElementById('login-senha').value='';
+    const nameEl = document.getElementById('drawer-usuario-nome');
+    if(nameEl) nameEl.textContent = currentUser;
+    addHistorico('Acesso','Login realizado');
+    toast('Bem-vindo, '+usuario+'.');
+    renderAll();
+  } else {
+    errEl.textContent='Usuário ou senha inválidos.';
+  }
+}
+function fazerLogout(){
+  if(!confirm('Deseja realmente sair?')) return;
+  addHistorico('Acesso','Logout realizado');
+  sessionStorage.removeItem(AUTH_KEY);
+  currentUser = null;
+  closeDrawer();
+  document.getElementById('login-overlay').style.display='flex';
+}
+document.getElementById('login-senha').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarLogin(); });
+document.getElementById('login-usuario').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarLogin(); });
+
+
+/* ============================= NAV ============================= */
+function switchView(viewName){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const tabBtn = document.querySelector(`.tab-btn[data-view="${viewName}"]`);
+  if(tabBtn) tabBtn.classList.add('active');
+  document.querySelectorAll('.drawer-item').forEach(b=>b.classList.remove('active'));
+  const drawerBtn = document.querySelector(`.drawer-item[data-view="${viewName}"]`);
+  if(drawerBtn) drawerBtn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+viewName).classList.add('active');
+  renderAll();
+}
+document.getElementById('tabs').addEventListener('click', e=>{
+  const btn=e.target.closest('.tab-btn'); if(!btn) return;
+  switchView(btn.dataset.view);
+});
+
+/* ============================= DRAWER ============================= */
+function toggleDrawer(){
+  document.getElementById('drawer').classList.toggle('show');
+  document.getElementById('drawer-backdrop').classList.toggle('show');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('show');
+  document.getElementById('drawer-backdrop').classList.remove('show');
+}
+
+/* ============================= HELPERS ============================= */
+function optList(arr, selected){
+  return arr.map(i=>`<option value="${i.id}" ${i.id===selected?'selected':''}>${i.nome}</option>`).join('');
+}
+function nome(arr,id){ const f=arr.find(x=>x.id===id); return f? f.nome : '—'; }
+function nomeModeloComCodigo(id){
+  const m=db.modelosRelogio.find(x=>x.id===id);
+  if(!m) return '—';
+  return m.codigoRef? m.codigoRef+' — '+m.nome : m.nome;
+}
+function barcodeModelo(id){
+  const m=db.modelosRelogio.find(x=>x.id===id);
+  return (m && m.codigoBarras) ? m.codigoBarras : '—';
+}
+function optListModelos(arr, selected){
+  return arr.map(i=>`<option value="${i.id}" ${i.id===selected?'selected':''}>${i.codigoRef? i.codigoRef+' — '+i.nome : i.nome}</option>`).join('');
+}
+function getStock(tipo,id){
+  const map = tipo==='materiaPrima'?db.estoqueMateriaPrima: tipo==='semiacabado'?db.estoqueSemiacabados: db.estoqueAcabados;
+  return map[id]||0;
+}
+function setStock(tipo,id,val){
+  const map = tipo==='materiaPrima'?db.estoqueMateriaPrima: tipo==='semiacabado'?db.estoqueSemiacabados: db.estoqueAcabados;
+  map[id]=val;
+}
+function addStock(tipo,id,delta){ setStock(tipo,id, +(getStock(tipo,id)+delta).toFixed(3)); }
+function itemNomeGeral(tipo,id){
+  if(tipo==='materiaPrima') return nome(db.materiasPrimas,id);
+  if(tipo==='semiacabado') return nome(db.produtosSemiacabados,id);
+  return nomeModeloComCodigo(id);
+}
+
+/* ============================= COMPRAS ============================= */
+function criarPedidoCompra(){
+  const fornecedorId=document.getElementById('pc-fornecedor').value;
+  const materiaId=document.getElementById('pc-materia').value;
+  const quantidade=parseFloat(document.getElementById('pc-quantidade').value);
+  const valor=parseFloat(document.getElementById('pc-valor').value);
+  if(!fornecedorId||!materiaId||!quantidade){ toast('Preencha fornecedor, material e quantidade.'); return; }
+  db.pedidosCompra.push({id:uid(), fornecedorId, materiaId, quantidade, valor:valor||0, status:'pendente', dataPedido:nowISO(), dataRecebimento:null, recebidoPor:null});
+  addHistorico('Compra','Pedido criado: '+quantidade+' de '+nome(db.materiasPrimas,materiaId)+' — '+nome(db.fornecedores,fornecedorId));
+  document.getElementById('pc-quantidade').value=''; document.getElementById('pc-valor').value='';
+  save(); toast('Pedido registrado.'); renderCompras();
+}
+function confirmarRecebimento(id){
+  const p=db.pedidosCompra.find(x=>x.id===id); if(!p) return;
+  openModal('Confirmar Recebimento', `
+    <p class="hint">${p.quantidade} de <b>${nome(db.materiasPrimas,p.materiaId)}</b> — Fornecedor: ${nome(db.fornecedores,p.fornecedorId)}</p>
+    <label>Recebido por</label><input id="modal-recebido-por" placeholder="Nome do funcionário">
+    <div class="btn-row"><button class="btn-primary" onclick="finalizarRecebimento('${id}')">Confirmar</button></div>
+  `);
+}
+function finalizarRecebimento(id){
+  const nomeFunc=document.getElementById('modal-recebido-por').value.trim();
+  if(!nomeFunc){ toast('Informe quem recebeu.'); return; }
+  const p=db.pedidosCompra.find(x=>x.id===id);
+  p.status='entregue'; p.dataRecebimento=nowISO(); p.recebidoPor=nomeFunc;
+  addStock('materiaPrima', p.materiaId, p.quantidade);
+  addHistorico('Recebimento', 'Recebido: '+p.quantidade+' de '+nome(db.materiasPrimas,p.materiaId)+' por '+nomeFunc);
+  save(); closeModal(); toast('Recebimento confirmado e estoque atualizado.'); renderAll();
+}
+function renderCompras(){
+  document.getElementById('pc-fornecedor').innerHTML=optList(db.fornecedores);
+  document.getElementById('pc-materia').innerHTML=optList(db.materiasPrimas);
+  const pend=db.pedidosCompra.filter(p=>p.status==='pendente');
+  document.getElementById('tbl-pc-pendentes').innerHTML = pend.length? pend.map(p=>`
+    <tr><td class="serial">${p.id}</td><td>${nome(db.fornecedores,p.fornecedorId)}</td><td>${nome(db.materiasPrimas,p.materiaId)}</td>
+    <td class="mono">${p.quantidade}</td><td class="mono">${fmtMoney(p.quantidade*p.valor)}</td><td>${fmtDate(p.dataPedido)}</td>
+    <td><button class="btn-primary btn-sm" onclick="confirmarRecebimento('${p.id}')">Receber</button></td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="7">Nenhum pedido pendente.</td></tr>`;
+  const all=[...db.pedidosCompra].sort((a,b)=>new Date(b.dataPedido)-new Date(a.dataPedido));
+  document.getElementById('tbl-pc-historico').innerHTML = all.length? all.map(p=>`
+    <tr><td class="serial">${p.id}</td><td>${nome(db.fornecedores,p.fornecedorId)}</td><td>${nome(db.materiasPrimas,p.materiaId)}</td>
+    <td class="mono">${p.quantidade}</td><td><span class="badge ${p.status==='entregue'?'badge-done':'badge-pending'}">${p.status}</span></td>
+    <td>${p.recebidoPor||'—'}</td><td>${fmtDate(p.dataRecebimento)}</td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="7">Nenhum pedido registrado.</td></tr>`;
+}
+
+/* ============================= PRODUÇÃO ============================= */
+function criarOrdemProducao(){
+  const produtorId=document.getElementById('op-produtor').value;
+  const produtoId=document.getElementById('op-produto').value;
+  const quantidade=parseFloat(document.getElementById('op-quantidade').value);
+  if(!produtorId||!produtoId||!quantidade){ toast('Preencha todos os campos.'); return; }
+  db.ordensProducao.push({id:uid(), produtorId, produtoId, quantidadeSolicitada:quantidade, quantidadeRecebida:0, entregas:[], status:'aberta', dataCriacao:nowISO()});
+  addHistorico('Produção','Ordem criada: '+quantidade+' de '+nome(db.produtosSemiacabados,produtoId)+' — '+nome(db.produtores,produtorId));
+  document.getElementById('op-quantidade').value='';
+  save(); toast('Ordem de produção criada.'); renderProducao();
+}
+function registrarEntregaProducao(id){
+  const o=db.ordensProducao.find(x=>x.id===id); if(!o) return;
+  const restante=o.quantidadeSolicitada-o.quantidadeRecebida;
+  openModal('Registrar Entrega', `
+    <p class="hint">${nome(db.produtosSemiacabados,o.produtoId)} — restante: <b>${restante}</b></p>
+    <label>Quantidade Entregue Hoje</label><input type="number" id="modal-entrega-qtd" min="0" step="1" max="${restante}">
+    <div class="btn-row"><button class="btn-primary" onclick="finalizarEntregaProducao('${id}')">Registrar</button></div>
+  `);
+}
+function finalizarEntregaProducao(id){
+  const qtd=parseFloat(document.getElementById('modal-entrega-qtd').value);
+  const o=db.ordensProducao.find(x=>x.id===id);
+  if(!qtd||qtd<=0){ toast('Informe uma quantidade válida.'); return; }
+  o.entregas.push({data:nowISO(), quantidade:qtd});
+  o.quantidadeRecebida+=qtd;
+  addStock('semiacabado', o.produtoId, qtd);
+  if(o.quantidadeRecebida>=o.quantidadeSolicitada) o.status='concluida';
+  addHistorico('Produção','Entrega recebida: '+qtd+' de '+nome(db.produtosSemiacabados,o.produtoId)+' ('+nome(db.produtores,o.produtorId)+')');
+  save(); closeModal(); toast('Entrega registrada e estoque atualizado.'); renderAll();
+}
+function renderProducao(){
+  document.getElementById('op-produtor').innerHTML=optList(db.produtores);
+  document.getElementById('op-produto').innerHTML=optList(db.produtosSemiacabados);
+  const abertas=db.ordensProducao.filter(o=>o.status==='aberta');
+  document.getElementById('tbl-op-abertas').innerHTML = abertas.length? abertas.map(o=>`
+    <tr><td class="serial">${o.id}</td><td>${nome(db.produtores,o.produtorId)}</td><td>${nome(db.produtosSemiacabados,o.produtoId)}</td>
+    <td class="mono">${o.quantidadeSolicitada}</td><td class="mono">${o.quantidadeRecebida}</td><td class="mono">${o.quantidadeSolicitada-o.quantidadeRecebida}</td>
+    <td><button class="btn-primary btn-sm" onclick="registrarEntregaProducao('${o.id}')">+ Entrega</button></td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="7">Nenhuma ordem aberta.</td></tr>`;
+  const conc=db.ordensProducao.filter(o=>o.status==='concluida');
+  document.getElementById('tbl-op-concluidas').innerHTML = conc.length? conc.map(o=>`
+    <tr><td class="serial">${o.id}</td><td>${nome(db.produtores,o.produtorId)}</td><td>${nome(db.produtosSemiacabados,o.produtoId)}</td>
+    <td class="mono">${o.quantidadeSolicitada}</td><td class="mono">${o.entregas.length} entregas</td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="5">Nenhuma ordem concluída ainda.</td></tr>`;
+}
+
+/* ============================= MONTAGEM ============================= */
+function previewBOM(){
+  const modeloId=document.getElementById('om-modelo').value;
+  const modelo=db.modelosRelogio.find(m=>m.id===modeloId);
+  const el=document.getElementById('om-bom-preview');
+  if(!modelo || !modelo.bom.length){ el.innerHTML='Sem composição (BOM) cadastrada para este modelo.'; return; }
+  el.innerHTML='Composição: '+modelo.bom.map(b=>`${b.qtd}x ${itemNomeGeral(b.tipo,b.itemId)}`).join(', ')+' por unidade.';
+}
+function criarOrdemMontagem(){
+  const montadorId=document.getElementById('om-montador').value;
+  const modeloId=document.getElementById('om-modelo').value;
+  const quantidade=parseFloat(document.getElementById('om-quantidade').value);
+  if(!montadorId||!modeloId||!quantidade){ toast('Preencha todos os campos.'); return; }
+  const modelo=db.modelosRelogio.find(m=>m.id===modeloId);
+  if(!modelo || !modelo.bom.length){ toast('Cadastre a composição (BOM) deste modelo em Cadastros.'); return; }
+  // check stock sufficiency
+  let falta=[];
+  modelo.bom.forEach(b=>{
+    const necessario=b.qtd*quantidade;
+    if(getStock(b.tipo,b.itemId) < necessario) falta.push(itemNomeGeral(b.tipo,b.itemId));
+  });
+  if(falta.length){
+    if(!confirm('Estoque insuficiente para: '+falta.join(', ')+'. Deseja continuar mesmo assim?')) return;
+  }
+  modelo.bom.forEach(b=>{ addStock(b.tipo,b.itemId, -(b.qtd*quantidade)); });
+  db.ordensMontagem.push({id:uid(), montadorId, modeloId, quantidadeEnviada:quantidade, quantidadeRecebida:0, perdas:0, status:'enviada', dataEnvio:nowISO(), dataRecebimento:null});
+  addHistorico('Montagem','Ordem enviada: '+quantidade+' kits de '+nomeModeloComCodigo(modeloId)+' ('+barcodeModelo(modeloId)+') — '+nome(db.montadores,montadorId));
+  document.getElementById('om-quantidade').value=''; document.getElementById('om-bom-preview').innerHTML='';
+  save(); toast('Ordem de montagem enviada, componentes baixados do estoque.'); renderAll();
+}
+function registrarRetornoMontagem(id){
+  const o=db.ordensMontagem.find(x=>x.id===id); if(!o) return;
+  openModal('Registrar Retorno da Montagem', `
+    <p class="hint">Kits enviados: <b>${o.quantidadeEnviada}</b> — informe quantas peças retornaram prontas.</p>
+    <label>Peças Prontas Recebidas</label><input type="number" id="modal-om-prontas" min="0" max="${o.quantidadeEnviada}" step="1">
+    <div class="hint">A diferença entre o enviado e o recebido será registrada automaticamente como perda.</div>
+    <div class="btn-row"><button class="btn-primary" onclick="finalizarRetornoMontagem('${id}')">Confirmar Retorno</button></div>
+  `);
+}
+function finalizarRetornoMontagem(id){
+  const prontas=parseFloat(document.getElementById('modal-om-prontas').value);
+  const o=db.ordensMontagem.find(x=>x.id===id);
+  if(isNaN(prontas)||prontas<0||prontas>o.quantidadeEnviada){ toast('Quantidade inválida.'); return; }
+  const perdas=o.quantidadeEnviada-prontas;
+  o.quantidadeRecebida=prontas; o.perdas=perdas; o.status='concluida'; o.dataRecebimento=nowISO();
+  addStock('acabado', o.modeloId, prontas);
+  addHistorico('Montagem', prontas+' unidades prontas de '+nomeModeloComCodigo(o.modeloId)+' ('+barcodeModelo(o.modeloId)+') — '+nome(db.montadores,o.montadorId)+(perdas>0?' · Perdas: '+perdas:''));
+  save(); closeModal(); toast('Retorno registrado. Estoque de acabados atualizado.'); renderAll();
+}
+function renderMontagem(){
+  document.getElementById('om-montador').innerHTML=optList(db.montadores);
+  document.getElementById('om-modelo').innerHTML=optListModelos(db.modelosRelogio);
+  const abertas=db.ordensMontagem.filter(o=>o.status==='enviada');
+  document.getElementById('tbl-om-abertas').innerHTML = abertas.length? abertas.map(o=>`
+    <tr><td class="serial">${o.id}</td><td>${nome(db.montadores,o.montadorId)}</td><td>${nomeModeloComCodigo(o.modeloId)}</td><td class="mono">${barcodeModelo(o.modeloId)}</td>
+    <td class="mono">${o.quantidadeEnviada}</td><td>${fmtDate(o.dataEnvio)}</td>
+    <td><button class="btn-primary btn-sm" onclick="registrarRetornoMontagem('${o.id}')">Registrar Retorno</button></td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="7">Nenhuma ordem em aberto.</td></tr>`;
+  const conc=db.ordensMontagem.filter(o=>o.status==='concluida');
+  document.getElementById('tbl-om-concluidas').innerHTML = conc.length? conc.map(o=>`
+    <tr><td class="serial">${o.id}</td><td>${nome(db.montadores,o.montadorId)}</td><td>${nomeModeloComCodigo(o.modeloId)}</td><td class="mono">${barcodeModelo(o.modeloId)}</td>
+    <td class="mono">${o.quantidadeEnviada}</td><td class="mono">${o.quantidadeRecebida}</td>
+    <td>${o.perdas>0?`<span class="badge badge-loss">${o.perdas}</span>`:'—'}</td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="7">Nenhuma ordem concluída ainda.</td></tr>`;
+}
+
+/* ============================= EXPEDIÇÃO ============================= */
+let expedicaoItens=[];
+function adicionarItemExpedicao(){
+  const modeloId=document.getElementById('ex-modelo').value;
+  const quantidade=parseFloat(document.getElementById('ex-quantidade').value);
+  if(!modeloId||!quantidade){ toast('Selecione modelo e quantidade.'); return; }
+  expedicaoItens.push({modeloId,quantidade});
+  document.getElementById('ex-quantidade').value='';
+  renderItensExpedicao();
+}
+function removerItemExpedicao(idx){ expedicaoItens.splice(idx,1); renderItensExpedicao(); }
+function renderItensExpedicao(){
+  const el=document.getElementById('ex-itens-list');
+  el.innerHTML = expedicaoItens.length? expedicaoItens.map((it,idx)=>`
+    <div class="bom-list-item"><span>${it.quantidade}x ${nomeModeloComCodigo(it.modeloId)} <span class="serial">(${barcodeModelo(it.modeloId)})</span></span>
+    <button class="btn-danger btn-sm" onclick="removerItemExpedicao(${idx})">remover</button></div>`).join('')
+    : '<div class="hint">Nenhum item adicionado ainda.</div>';
+}
+function confirmarExpedicao(){
+  const clienteId=document.getElementById('ex-cliente').value;
+  if(!clienteId){ toast('Selecione o cliente.'); return; }
+  if(!expedicaoItens.length){ toast('Adicione ao menos um item.'); return; }
+  let falta=[];
+  expedicaoItens.forEach(it=>{ if(getStock('acabado',it.modeloId) < it.quantidade) falta.push(nomeModeloComCodigo(it.modeloId)); });
+  if(falta.length){ if(!confirm('Estoque insuficiente para: '+falta.join(', ')+'. Continuar mesmo assim?')) return; }
+  expedicaoItens.forEach(it=>{ addStock('acabado', it.modeloId, -it.quantidade); });
+  db.expedicoes.push({id:uid(), clienteId, itens:[...expedicaoItens], data:nowISO()});
+  addHistorico('Expedição','Enviado para '+nome(db.clientes,clienteId)+': '+expedicaoItens.map(i=>i.quantidade+'x '+nomeModeloComCodigo(i.modeloId)+' ('+barcodeModelo(i.modeloId)+')').join(', '));
+  expedicaoItens=[];
+  save(); toast('Expedição confirmada, estoque de acabados atualizado.'); renderAll();
+}
+function renderExpedicao(){
+  document.getElementById('ex-cliente').innerHTML=optList(db.clientes);
+  document.getElementById('ex-modelo').innerHTML=optListModelos(db.modelosRelogio);
+  renderItensExpedicao();
+  const all=[...db.expedicoes].sort((a,b)=>new Date(b.data)-new Date(a.data));
+  document.getElementById('tbl-expedicoes').innerHTML = all.length? all.map(e=>`
+    <tr><td class="serial">${e.id}</td><td>${nome(db.clientes,e.clienteId)}</td>
+    <td>${e.itens.map(i=>i.quantidade+'x '+nomeModeloComCodigo(i.modeloId)+' <span class="hint">('+barcodeModelo(i.modeloId)+')</span>').join(', ')}</td><td>${fmtDate(e.data)}</td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="4">Nenhuma expedição registrada.</td></tr>`;
+}
+
+/* ============================= ESTOQUES / RELATÓRIOS ============================= */
+function terceirosPendentesRows(){
+  const abertas=db.ordensProducao.filter(o=>o.status==='aberta');
+  if(!abertas.length) return `<tr class="empty-row"><td colspan="3">Nenhuma produção pendente em terceiros.</td></tr>`;
+  return abertas.map(o=>`<tr><td>${nome(db.produtosSemiacabados,o.produtoId)}</td><td>${nome(db.produtores,o.produtorId)}</td><td class="mono">${o.quantidadeSolicitada-o.quantidadeRecebida}</td></tr>`).join('');
+}
+function renderEstoquesReports(){
+  const mRows = db.materiasPrimas.length? db.materiasPrimas.map(m=>`<tr><td>${m.nome}</td><td>${m.unidade||'—'}</td><td class="mono">${getStock('materiaPrima',m.id)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="3">Nenhuma matéria-prima cadastrada.</td></tr>`;
+  const sRows = db.produtosSemiacabados.length? db.produtosSemiacabados.map(m=>`<tr><td>${m.nome}</td><td>${m.unidade||'—'}</td><td class="mono">${getStock('semiacabado',m.id)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="3">Nenhum produto semiacabado cadastrado.</td></tr>`;
+  const aRows = db.modelosRelogio.length? db.modelosRelogio.map(m=>`<tr><td>${nomeModeloComCodigo(m.id)}</td><td class="mono">${m.codigoBarras||'—'}</td><td class="mono">${getStock('acabado',m.id)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="3">Nenhum modelo cadastrado.</td></tr>`;
+  const tRows = terceirosPendentesRows();
+  ['tbl-est-materia','rel-materia'].forEach(id=>document.getElementById(id).innerHTML=mRows);
+  ['tbl-est-semi','rel-semi'].forEach(id=>document.getElementById(id).innerHTML=sRows);
+  ['tbl-est-acabados','rel-acabados'].forEach(id=>document.getElementById(id).innerHTML=aRows);
+  ['tbl-est-terceiros','rel-terceiros'].forEach(id=>document.getElementById(id).innerHTML=tRows);
+  const hist=db.historico.slice(0,300);
+  document.getElementById('rel-historico').innerHTML = hist.length? hist.map(h=>`<tr><td>${fmtDate(h.data)}</td><td><span class="badge badge-pending">${h.tipo}</span></td><td>${h.desc}</td><td>${h.usuario||'—'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="4">Sem movimentações.</td></tr>`;
+}
+
+/* ============================= DASHBOARD ============================= */
+function renderDashboard(){
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  const pedidosPend = db.pedidosCompra.filter(p=>p.status==='pendente').length;
+  const opAbertas = db.ordensProducao.filter(o=>o.status==='aberta').length;
+  const omAbertas = db.ordensMontagem.filter(o=>o.status==='enviada').length;
+  const totalAcabados = Object.values(db.estoqueAcabados).reduce((a,b)=>a+b,0);
+  const totalSemi = Object.values(db.estoqueSemiacabados).reduce((a,b)=>a+b,0);
+  const maxRef = Math.max(pedidosPend,opAbertas,omAbertas,1);
+  const dials=[
+    {label:'Compras Pendentes', val:pedidosPend, pct: Math.min(100,pedidosPend/maxRef*100), sub:'pedidos'},
+    {label:'Produção Aberta', val:opAbertas, pct: Math.min(100,opAbertas/maxRef*100), sub:'ordens'},
+    {label:'Montagem Aberta', val:omAbertas, pct: Math.min(100,omAbertas/maxRef*100), sub:'ordens'},
+    {label:'Semiacabados', val:totalSemi, pct: totalSemi>0?100:0, sub:'unidades em estoque'},
+    {label:'Acabados', val:totalAcabados, pct: totalAcabados>0?100:0, sub:'prontos p/ venda'},
+  ];
+  document.getElementById('dash-dials').innerHTML = dials.map(d=>`
+    <div class="dial-card"><div class="dial" style="--pct:${d.pct}"><span>${d.val}</span></div>
+    <div class="label">${d.label}</div><div class="sub">${d.sub}</div></div>`).join('');
+  const hist=db.historico.slice(0,12);
+  document.getElementById('dash-historico').innerHTML = hist.length? hist.map(h=>`<tr><td>${fmtDate(h.data)}</td><td><span class="badge badge-pending">${h.tipo}</span></td><td>${h.desc}</td><td>${h.usuario||'—'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="4">Nenhuma movimentação ainda. Comece registrando um pedido de compra.</td></tr>`;
+}
+
+/* ============================= AJUSTES ============================= */
+function popularItensAjuste(){
+  const tipo=document.getElementById('aj-tipo').value;
+  const arr = tipo==='materiaPrima'?db.materiasPrimas: tipo==='semiacabado'?db.produtosSemiacabados: db.modelosRelogio;
+  document.getElementById('aj-item').innerHTML = tipo==='acabado'? optListModelos(arr) : optList(arr);
+  mostrarQtdAtual();
+}
+function mostrarQtdAtual(){
+  const tipo=document.getElementById('aj-tipo').value;
+  const itemId=document.getElementById('aj-item').value;
+  document.getElementById('aj-atual').textContent = itemId? getStock(tipo,itemId) : '—';
+}
+function salvarAjuste(){
+  const tipo=document.getElementById('aj-tipo').value;
+  const itemId=document.getElementById('aj-item').value;
+  const nova=parseFloat(document.getElementById('aj-nova').value);
+  const motivo=document.getElementById('aj-motivo').value;
+  if(!itemId || isNaN(nova)){ toast('Selecione o item e informe a nova quantidade.'); return; }
+  const antes=getStock(tipo,itemId);
+  setStock(tipo,itemId,nova);
+  db.ajustes.unshift({id:uid(), data:nowISO(), tipo, itemId, antes, depois:nova, motivo, usuario: currentUser || 'Rodrigo'});
+  addHistorico('Ajuste', 'Ajuste em '+itemNomeGeral(tipo,itemId)+': '+antes+' → '+nova+' ('+motivo+')');
+  document.getElementById('aj-nova').value='';
+  save(); toast('Ajuste salvo.'); renderAll();
+}
+function renderAjustes(){
+  popularItensAjuste();
+  const rows=db.ajustes;
+  document.getElementById('tbl-ajustes').innerHTML = rows.length? rows.map(a=>`
+    <tr><td>${fmtDate(a.data)}</td><td>${a.tipo}</td><td>${itemNomeGeral(a.tipo,a.itemId)}</td>
+    <td class="mono">${a.antes}</td><td class="mono">${a.depois}</td><td>${a.motivo}</td><td>${a.usuario||'—'}</td></tr>`).join('')
+    : `<tr class="empty-row"><td colspan="7">Nenhum ajuste registrado.</td></tr>`;
+}
+
+/* ============================= CADASTROS ============================= */
+const cadConfig = {
+  fornecedores:{label:'Fornecedores', fields:[{key:'nome',label:'Nome',type:'text'},{key:'contato',label:'Contato',type:'text'}]},
+  materiasPrimas:{label:'Matérias-Primas', fields:[{key:'nome',label:'Nome',type:'text'},{key:'unidade',label:'Unidade (kg, un, m...)',type:'text'}]},
+  produtores:{label:'Produtores', fields:[{key:'nome',label:'Nome',type:'text'}]},
+  produtosSemiacabados:{label:'Semiacabados', fields:[{key:'nome',label:'Nome',type:'text'},{key:'unidade',label:'Unidade',type:'text'}]},
+  montadores:{label:'Montadores', fields:[{key:'nome',label:'Nome',type:'text'},{key:'tipo',label:'Tipo',type:'select',options:['Interna','Externa']}]},
+  clientes:{label:'Clientes', fields:[{key:'nome',label:'Nome',type:'text'},{key:'cidade',label:'Cidade',type:'text'}]},
+  modelosRelogio:{label:'Modelos + Composição', custom:true}
+};
+let cadAtivo='fornecedores';
+function renderCadSubtabs(){
+  document.getElementById('cad-subtabs').innerHTML = Object.keys(cadConfig).map(k=>
+    `<button class="subtab-btn ${k===cadAtivo?'active':''}" onclick="trocarCad('${k}')">${cadConfig[k].label}</button>`).join('');
+}
+function trocarCad(key){ cadAtivo=key; renderCadastros(); }
+function renderCadastros(){
+  renderCadSubtabs();
+  renderImportUndoStatus();
+  const cfg=cadConfig[cadAtivo];
+  const content=document.getElementById('cad-content');
+  if(cfg.custom){ content.innerHTML = modeloCadastroHTML(); bindModeloEvents(); return; }
+  const formFields = cfg.fields.map(f=>{
+    if(f.type==='select') return `<label>${f.label}</label><select id="cad-f-${f.key}">${f.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
+    return `<label>${f.label}</label><input id="cad-f-${f.key}" type="text">`;
+  }).join('');
+  content.innerHTML = `
+    <div class="card"><h3>Novo Registro — ${cfg.label}</h3>${formFields}
+      <div class="btn-row"><button class="btn-primary" onclick="salvarCadastroSimples()">Adicionar</button></div>
+    </div>
+    <div class="card"><div class="table-wrap"><table>
+      <thead><tr>${cfg.fields.map(f=>`<th>${f.label}</th>`).join('')}<th></th></tr></thead>
+      <tbody>${db[cadAtivo].length? db[cadAtivo].map(item=>`
+        <tr>${cfg.fields.map(f=>`<td>${item[f.key]||'—'}</td>`).join('')}
+        <td><button class="btn-danger btn-sm" onclick="excluirCadastro('${item.id}')">excluir</button></td></tr>`).join('')
+        : `<tr class="empty-row"><td colspan="${cfg.fields.length+1}">Nenhum registro ainda.</td></tr>`}
+      </tbody></table></div></div>`;
+}
+function salvarCadastroSimples(){
+  const cfg=cadConfig[cadAtivo];
+  const obj={id:uid()};
+  let ok=true;
+  cfg.fields.forEach(f=>{ const v=document.getElementById('cad-f-'+f.key).value.trim(); if(f.key==='nome'&&!v) ok=false; obj[f.key]=v; });
+  if(!ok){ toast('O nome é obrigatório.'); return; }
+  db[cadAtivo].push(obj);
+  addHistorico('Cadastro', 'Novo registro em '+cfg.label+': '+(obj.nome||obj.id));
+  save(); toast('Registro adicionado.'); renderCadastros(); renderAll();
+}
+function excluirCadastro(id){
+  if(!confirm('Excluir este registro?')) return;
+  const cfg=cadConfig[cadAtivo];
+  const item=db[cadAtivo].find(x=>x.id===id);
+  db[cadAtivo]=db[cadAtivo].filter(x=>x.id!==id);
+  addHistorico('Cadastro', 'Registro excluído em '+cfg.label+': '+(item? (item.nome||item.id) : id));
+  save(); renderCadastros(); renderAll();
+}
+
+/* Modelos + BOM */
+let bomTemp=[];
+let modeloBusca='';
+function modeloCadastroHTML(){
+  const itemOptions = [
+    ...db.materiasPrimas.map(m=>`<option value="materiaPrima:${m.id}">[Matéria-Prima] ${m.nome}</option>`),
+    ...db.produtosSemiacabados.map(m=>`<option value="semiacabado:${m.id}">[Semiacabado] ${m.nome}</option>`)
+  ].join('');
+  const termo=(modeloBusca||'').toLowerCase().trim();
+  const lista = db.modelosRelogio.filter(m=>{
+    if(!termo) return true;
+    return [m.nome,m.codigoRef,m.codigoBarras].some(v=>(v||'').toString().toLowerCase().includes(termo));
+  });
+  return `
+    <div class="card"><h3>Novo Modelo de Relógio</h3>
+      <label>Nome do Modelo</label><input id="modelo-nome" placeholder="Ex: Relógio Ômega">
+      <div class="divider"></div>
+      <h3>Composição (BOM)</h3>
+      <div class="bom-row">
+        <div><label>Peça / Material</label><select id="bom-item">${itemOptions || '<option value="">Cadastre materiais/semiacabados primeiro</option>'}</select></div>
+        <div><label>Qtd por unidade</label><input id="bom-qtd" type="number" min="0" step="0.01" value="1"></div>
+        <div></div>
+        <button class="btn-ghost btn-sm" onclick="addBomTemp()">+ Peça</button>
+      </div>
+      <div id="bom-temp-list">${renderBomTempList()}</div>
+      <div class="btn-row"><button class="btn-primary" onclick="salvarModelo()">Salvar Modelo</button></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <h3 style="margin-bottom:0;">Modelos / Catálogo Cadastrado</h3>
+        <span class="hint" style="margin:0;">${lista.length} de ${db.modelosRelogio.length} registro(s)</span>
+      </div>
+      <input id="modelo-busca" placeholder="Buscar por nome, código ref. ou código de barras..." value="${modeloBusca||''}" oninput="filtrarModelos(this.value)" style="margin-top:10px;">
+      <div class="table-wrap" style="margin-top:10px;"><table>
+        <thead><tr><th>Cód. Ref</th><th>Descrição</th><th>Cód. Barras</th><th>NCM</th><th>Valor</th><th>Peso</th><th>Composição (BOM)</th><th></th></tr></thead>
+        <tbody>${lista.length? lista.map(m=>`
+          <tr>
+            <td class="serial">${m.codigoRef||'—'}</td>
+            <td>${m.nome}</td>
+            <td class="mono">${m.codigoBarras||'—'}</td>
+            <td class="mono">${m.ncm||'—'}</td>
+            <td class="mono">${m.valor? fmtMoney(m.valor) : '—'}</td>
+            <td>${m.peso||'—'}</td>
+            <td><span class="hint" style="margin:0;">${m.bom&&m.bom.length? m.bom.map(b=>`${b.qtd}x ${itemNomeGeral(b.tipo,b.itemId)}`).join(', ') : 'Sem composição'}</span></td>
+            <td><button class="btn-danger btn-sm" onclick="excluirModelo('${m.id}')">excluir</button></td>
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="8">Nenhum modelo encontrado.</td></tr>`}
+        </tbody></table></div>
+    </div>`;
+}
+function filtrarModelos(v){ modeloBusca=v; const el=document.getElementById('cad-content'); if(el) el.innerHTML=modeloCadastroHTML(); }
+function renderBomTempList(){
+  if(!bomTemp.length) return '<p class="hint">Nenhuma peça adicionada à composição ainda.</p>';
+  return bomTemp.map((b,idx)=>`<div class="bom-list-item"><span>${b.qtd}x ${itemNomeGeral(b.tipo,b.itemId)}</span>
+    <button class="btn-danger btn-sm" onclick="removeBomTemp(${idx})">remover</button></div>`).join('');
+}
+function addBomTemp(){
+  const val=document.getElementById('bom-item').value;
+  const qtd=parseFloat(document.getElementById('bom-qtd').value);
+  if(!val||!qtd){ toast('Selecione a peça e a quantidade.'); return; }
+  const [tipo,itemId]=val.split(':');
+  bomTemp.push({tipo,itemId,qtd});
+  document.getElementById('bom-temp-list').innerHTML=renderBomTempList();
+}
+function removeBomTemp(idx){ bomTemp.splice(idx,1); document.getElementById('bom-temp-list').innerHTML=renderBomTempList(); }
+function salvarModelo(){
+  const nomeModelo=document.getElementById('modelo-nome').value.trim();
+  if(!nomeModelo){ toast('Informe o nome do modelo.'); return; }
+  db.modelosRelogio.push({id:uid(), nome:nomeModelo, bom:[...bomTemp]});
+  addHistorico('Cadastro', 'Novo modelo cadastrado: '+nomeModelo);
+  bomTemp=[]; save(); toast('Modelo salvo.'); renderCadastros(); renderAll();
+}
+function excluirModelo(id){
+  if(!confirm('Excluir este modelo?')) return;
+  const modelo=db.modelosRelogio.find(m=>m.id===id);
+  db.modelosRelogio=db.modelosRelogio.filter(m=>m.id!==id);
+  addHistorico('Cadastro', 'Modelo excluído: '+(modelo? modelo.nome : id));
+  save(); renderCadastros(); renderAll();
+}
+function bindModeloEvents(){}
+
+/* ============================= IMPORTAÇÃO EXCEL (CATÁLOGO / CÓDIGO DE BARRAS) ============================= */
+const IMPORT_SNAPSHOT_KEY = 'chronoflow_import_snapshot_v1';
+const IMPORT_HEADER_MAP = {
+  'CODIGO REF':'codigoRef', 'COD REF':'codigoRef', 'REF':'codigoRef', 'CODIGO':'codigoRef', 'CODIGO PRODUTO':'codigoRef', 'SKU':'codigoRef',
+  'DESCRICAO':'descricao', 'DESCRICAO PRODUTO':'descricao', 'PRODUTO':'descricao', 'NOME':'descricao',
+  'UNIDADE':'unidade', 'UN':'unidade', 'UNID':'unidade',
+  'COD NCM':'ncm', 'CODIGO NCM':'ncm', 'NCM':'ncm',
+  'CODIGO BARRAS':'codigoBarras', 'COD BARRAS':'codigoBarras', 'CODIGO DE BARRAS':'codigoBarras', 'EAN':'codigoBarras', 'GTIN':'codigoBarras',
+  'MEDIDAS':'medidas', 'DIMENSOES':'medidas',
+  'VALOR':'valor', 'PRECO':'valor', 'VALOR UNITARIO':'valor',
+  'PESO':'peso'
+};
+const IMPORT_POSITIONAL_DEFAULT = ['codigoRef','descricao','unidade','ncm','codigoBarras','medidas','valor','peso'];
+
+function normalizarHeaderTexto(s){
+  return (s===null||s===undefined? '' : String(s))
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toUpperCase().trim().replace(/\s+/g,' ');
+}
+function normalizarBarcode(v){
+  if(v===null||v===undefined||v==='') return '';
+  if(typeof v==='number') return String(Math.round(v));
+  return String(v).trim();
+}
+function normalizarValor(v){
+  if(v===null||v===undefined||v==='') return 0;
+  if(typeof v==='number') return v;
+  const n=parseFloat(String(v).replace(/\./g,'').replace(',','.'));
+  return isNaN(n)? 0 : n;
+}
+
+function handleImportExcelFile(evt){
+  const file=evt.target.files[0]; if(!file) return;
+  if(typeof XLSX==='undefined'){ toast('Biblioteca de importação não carregou. Verifique sua conexão.'); evt.target.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    let workbook;
+    try{ workbook = XLSX.read(new Uint8Array(e.target.result), {type:'array'}); }
+    catch(err){ toast('Não foi possível ler o arquivo. Verifique se é um .xlsx válido.'); evt.target.value=''; return; }
+    const parsed = parseWorkbookProdutos(workbook);
+    window._pendingImportParsed = parsed;
+    window._pendingImportFileName = file.name;
+    renderImportPreview(parsed, file.name);
+    evt.target.value='';
+  };
+  reader.onerror=()=>{ toast('Erro ao ler o arquivo selecionado.'); evt.target.value=''; };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseWorkbookProdutos(workbook){
+  const produtosPorBarcode = {}; // dedup within the file itself, last occurrence wins
+  const semBarcode = [];
+  const erros = [];
+  let categoriasDetectadas = 0;
+  let linhasLidas = 0;
+
+  workbook.SheetNames.forEach(sheetName=>{
+    const ws = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    if(!rows.length) return;
+
+    // build column map from header row (row 0), falling back to positional defaults
+    const headerRow = rows[0] || [];
+    const colMap = {};
+    headerRow.forEach((h,idx)=>{
+      const norm = normalizarHeaderTexto(h);
+      if(IMPORT_HEADER_MAP[norm]) colMap[IMPORT_HEADER_MAP[norm]] = idx;
+    });
+    IMPORT_POSITIONAL_DEFAULT.forEach((key,idx)=>{ if(colMap[key]===undefined) colMap[key]=idx; });
+
+    let categoriaAtual = '';
+    for(let r=1;r<rows.length;r++){
+      const row = rows[r];
+      if(!row || row.every(c=>c===null||c==='')) continue; // linha totalmente vazia
+      linhasLidas++;
+
+      const codigoRef = row[colMap.codigoRef]!=null? String(row[colMap.codigoRef]).trim() : '';
+      const descricao = row[colMap.descricao]!=null? String(row[colMap.descricao]).trim() : '';
+      const unidade = row[colMap.unidade]!=null? String(row[colMap.unidade]).trim() : '';
+      const ncm = row[colMap.ncm]!=null? String(row[colMap.ncm]).trim() : '';
+      const codigoBarras = normalizarBarcode(row[colMap.codigoBarras]);
+      const medidas = row[colMap.medidas]!=null? String(row[colMap.medidas]).trim() : '';
+      const valor = normalizarValor(row[colMap.valor]);
+      const peso = row[colMap.peso]!=null? String(row[colMap.peso]).trim() : '';
+
+      // linha de categoria/divisor: sem código ref, sem código de barras, mas com descrição
+      if(!codigoRef && !codigoBarras && descricao){
+        categoriaAtual = descricao;
+        categoriasDetectadas++;
+        continue;
+      }
+      if(!codigoRef && !descricao && !codigoBarras) continue;
+
+      const produto = {codigoRef, descricao, unidade, ncm, codigoBarras, medidas, valor, peso, categoria:categoriaAtual, sheet:sheetName, linha:r+1};
+
+      if(!codigoRef || !codigoBarras){
+        erros.push({sheet:sheetName, linha:r+1, motivo: !codigoRef? 'Código de Referência ausente' : 'Código de Barras ausente', codigoRef, descricao});
+        continue;
+      }
+      if(produtosPorBarcode[codigoBarras]) semBarcode.push(codigoBarras); // duplicate within file, tracked informationally
+      produtosPorBarcode[codigoBarras] = produto;
+    }
+  });
+
+  return {
+    produtos: Object.values(produtosPorBarcode),
+    erros,
+    categoriasDetectadas,
+    duplicadosNoArquivo: semBarcode.length,
+    linhasLidas,
+    sheets: workbook.SheetNames
+  };
+}
+
+function renderImportPreview(parsed, fileName){
+  const amostra = parsed.produtos.slice(0,12);
+  const existentesPorBarcode = {}; db.modelosRelogio.forEach(m=>{ if(m.codigoBarras) existentesPorBarcode[m.codigoBarras]=m; });
+  const existentesPorRef = {}; db.modelosRelogio.forEach(m=>{ if(m.codigoRef) existentesPorRef[m.codigoRef]=m; });
+  let novos=0, atualizados=0;
+  parsed.produtos.forEach(p=>{
+    const existe = existentesPorBarcode[p.codigoBarras] || existentesPorRef[p.codigoRef];
+    if(existe) atualizados++; else novos++;
+  });
+
+  openModal('Prévia da Importação — '+fileName, `
+    <p class="hint">Planilhas lidas: <b>${parsed.sheets.join(', ')}</b> · Linhas processadas: <b>${parsed.linhasLidas}</b></p>
+    <div class="import-summary">
+      <div class="import-stat"><b>${novos}</b><span>Novos</span></div>
+      <div class="import-stat"><b>${atualizados}</b><span>Atualizar</span></div>
+      <div class="import-stat"><b>${parsed.categoriasDetectadas}</b><span>Categorias</span></div>
+      <div class="import-stat"><b style="color:${parsed.erros.length?'var(--bad)':'var(--brass-bright)'}">${parsed.erros.length}</b><span>Erros</span></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Cód. Ref</th><th>Descrição</th><th>Cód. Barras</th><th>Valor</th></tr></thead>
+      <tbody>${amostra.map(p=>`<tr><td class="serial">${p.codigoRef}</td><td>${p.descricao}</td><td class="mono">${p.codigoBarras}</td><td class="mono">${fmtMoney(p.valor)}</td></tr>`).join('') || '<tr class="empty-row"><td colspan="4">Nenhum produto válido encontrado.</td></tr>'}</tbody>
+    </table></div>
+    ${parsed.produtos.length>amostra.length? `<p class="hint">+ ${parsed.produtos.length-amostra.length} outro(s) registro(s) não exibido(s) na prévia.</p>` : ''}
+    ${parsed.erros.length? `<div class="divider"></div><h3 style="font-size:14px;">Inconsistências encontradas (${parsed.erros.length})</h3>
+      ${parsed.erros.slice(0,10).map(e=>`<div class="import-error-row">Planilha "${e.sheet}", linha ${e.linha}: ${e.motivo} (${e.codigoRef||e.descricao||'—'})</div>`).join('')}
+      ${parsed.erros.length>10? `<p class="hint">+ ${parsed.erros.length-10} outro(s) erro(s).</p>` : ''}` : ''}
+    <div id="import-progress-wrap" style="display:none;">
+      <div class="progress-track"><div class="progress-fill" id="import-progress-fill"></div></div>
+      <p class="hint" id="import-progress-label">Importando...</p>
+    </div>
+    <div class="btn-row" id="import-confirm-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="confirmarImportacaoExcel()" ${!parsed.produtos.length?'disabled':''}>Importar ${parsed.produtos.length} Registro(s)</button>
+    </div>
+  `);
+}
+
+function confirmarImportacaoExcel(){
+  const parsed = window._pendingImportParsed;
+  if(!parsed || !parsed.produtos.length){ closeModal(); return; }
+  document.getElementById('import-progress-wrap').style.display='block';
+  document.getElementById('import-confirm-actions').style.display='none';
+
+  // snapshot for undo
+  localStorage.setItem(IMPORT_SNAPSHOT_KEY, JSON.stringify({
+    quando: nowISO(), arquivo: window._pendingImportFileName||'', modelosRelogio: db.modelosRelogio
+  }));
+
+  const produtos = parsed.produtos;
+  const existentesPorBarcode = {}; db.modelosRelogio.forEach(m=>{ if(m.codigoBarras) existentesPorBarcode[m.codigoBarras]=m; });
+  const existentesPorRef = {}; db.modelosRelogio.forEach(m=>{ if(m.codigoRef) existentesPorRef[m.codigoRef]=m; });
+
+  let idx=0, importados=0, atualizados=0;
+  const CHUNK=250;
+  function processarLote(){
+    const fim=Math.min(idx+CHUNK, produtos.length);
+    for(;idx<fim;idx++){
+      const p=produtos[idx];
+      const existente = existentesPorBarcode[p.codigoBarras] || existentesPorRef[p.codigoRef];
+      if(existente){
+        Object.assign(existente, {
+          nome:p.descricao||existente.nome, codigoRef:p.codigoRef, unidade:p.unidade, ncm:p.ncm,
+          codigoBarras:p.codigoBarras, medidas:p.medidas, valor:p.valor, peso:p.peso, categoria:p.categoria
+        });
+        atualizados++;
+      } else {
+        const novo = {
+          id:uid(), nome:p.descricao||p.codigoRef, bom:[],
+          codigoRef:p.codigoRef, unidade:p.unidade, ncm:p.ncm, codigoBarras:p.codigoBarras,
+          medidas:p.medidas, valor:p.valor, peso:p.peso, categoria:p.categoria
+        };
+        db.modelosRelogio.push(novo);
+        existentesPorBarcode[novo.codigoBarras]=novo;
+        existentesPorRef[novo.codigoRef]=novo;
+        importados++;
+      }
+    }
+    const pct = Math.round((idx/produtos.length)*100);
+    const fill=document.getElementById('import-progress-fill'); if(fill) fill.style.width=pct+'%';
+    const label=document.getElementById('import-progress-label'); if(label) label.textContent='Importando... '+idx+' de '+produtos.length;
+    if(idx<produtos.length){ setTimeout(processarLote, 0); }
+    else finalizarImportacao(importados, atualizados, parsed.erros.length);
+  }
+  processarLote();
+}
+
+function finalizarImportacao(importados, atualizados, errosCount){
+  save();
+  addHistorico('Importação Excel', 'Arquivo "'+(window._pendingImportFileName||'')+'": '+importados+' novo(s), '+atualizados+' atualizado(s), '+errosCount+' erro(s).');
+  window._pendingImportParsed = null;
+  document.getElementById('modal-content').innerHTML = `
+    <h3>Importação Concluída</h3>
+    <div class="import-summary">
+      <div class="import-stat"><b>${importados}</b><span>Importados</span></div>
+      <div class="import-stat"><b>${atualizados}</b><span>Atualizados</span></div>
+      <div class="import-stat"><b>${errosCount}</b><span>Ignorados/Erros</span></div>
+      <div class="import-stat"><b>${importados+atualizados}</b><span>Total no Catálogo</span></div>
+    </div>
+    <p class="hint">A operação foi registrada no histórico de auditoria. Se necessário, você pode desfazer esta importação.</p>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="desfazerUltimaImportacao()">Desfazer Importação</button>
+      <button class="btn-primary" onclick="closeModal()">Concluir</button>
+    </div>
+  `;
+  renderCadastros(); renderAll(); renderImportUndoStatus();
+  toast('Importação concluída: '+importados+' novo(s), '+atualizados+' atualizado(s).');
+}
+
+function desfazerUltimaImportacao(){
+  let snap;
+  try{ snap = JSON.parse(localStorage.getItem(IMPORT_SNAPSHOT_KEY)||'null'); }catch(e){ snap=null; }
+  if(!snap){ toast('Nenhuma importação recente para desfazer.'); return; }
+  if(!confirm('Desfazer a última importação ("'+(snap.arquivo||'arquivo')+'")? Isso restaura o catálogo de modelos ao estado anterior à importação.')) return;
+  db.modelosRelogio = snap.modelosRelogio;
+  localStorage.removeItem(IMPORT_SNAPSHOT_KEY);
+  addHistorico('Importação Excel', 'Última importação desfeita ('+(snap.arquivo||'arquivo')+').');
+  save(); closeModal(); toast('Importação desfeita com sucesso.'); renderAll(); renderImportUndoStatus();
+}
+
+function renderImportUndoStatus(){
+  const el=document.getElementById('import-excel-undo-status'); if(!el) return;
+  let snap;
+  try{ snap = JSON.parse(localStorage.getItem(IMPORT_SNAPSHOT_KEY)||'null'); }catch(e){ snap=null; }
+  el.innerHTML = snap
+    ? 'Última importação: <b>'+(snap.arquivo||'—')+'</b> em '+fmtDate(snap.quando)+' — <a href="#" onclick="desfazerUltimaImportacao();return false;" style="color:var(--bad);">desfazer</a>'
+    : 'Nenhuma importação realizada ainda neste dispositivo.';
+}
+
+/* ============================= MODAL ============================= */
+function openModal(title, bodyHTML){
+  document.getElementById('modal-content').innerHTML = `<h3>${title}</h3>${bodyHTML}`;
+  document.getElementById('modal-backdrop').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal-backdrop').classList.remove('show'); }
+document.getElementById('modal-backdrop').addEventListener('click', e=>{ if(e.target.id==='modal-backdrop') closeModal(); });
+
+/* ============================= BACKUP / RESTORE ============================= */
+const BACKUP_META_KEY = 'chronoflow_backup_meta_v1';
+
+function exportarBackup(){
+  const payload = { __app:'chronoflow', __version:1, __exportedAt: nowISO(), data: db };
+  const blob=new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='chronoflow_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  localStorage.setItem(BACKUP_META_KEY, JSON.stringify({lastExport: nowISO()}));
+  toast('Backup exportado.');
+  renderBackupStatus();
+}
+
+function handleBackupFile(evt){
+  const file=evt.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    let parsed;
+    try{ parsed = JSON.parse(e.target.result); }
+    catch(err){ toast('Arquivo inválido: não é um JSON válido.'); evt.target.value=''; return; }
+    const incoming = parsed && parsed.data ? parsed.data : parsed;
+    if(!incoming || typeof incoming !== 'object' || Array.isArray(incoming)){
+      toast('Arquivo inválido: formato inesperado.'); evt.target.value=''; return;
+    }
+    const modo = document.getElementById('backup-modo').value;
+    if(modo === 'substituir'){
+      window._pendingBackupImport = incoming;
+      openModal('Confirmar Substituição', `
+        <p style="margin-bottom:14px;color:var(--ink-muted);">
+          Isso vai <b>apagar todos os dados atuais</b> deste dispositivo e colocar no lugar apenas o
+          conteúdo do arquivo importado. Essa ação não pode ser desfeita.
+        </p>
+        <div class="btn-row">
+          <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+          <button class="btn-primary" onclick="confirmarSubstituicao()">Substituir Tudo</button>
+        </div>
+      `);
+    } else {
+      mesclarBackup(incoming);
+      addHistorico('Backup', 'Backup mesclado com dados atuais');
+      toast('Backup mesclado com sucesso.');
+      save(); renderAll(); renderBackupStatus();
+    }
+    evt.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function confirmarSubstituicao(){
+  const incoming = window._pendingBackupImport;
+  if(!incoming){ closeModal(); return; }
+  db = Object.assign(defaultDB(), incoming);
+  window._pendingBackupImport = null;
+  addHistorico('Backup', 'Restauração completa (substituição) de backup');
+  save(); closeModal(); toast('Dados substituídos com sucesso.'); renderAll(); renderBackupStatus();
+}
+
+function mesclarBackup(incoming){
+  const listKeys = ['fornecedores','materiasPrimas','produtores','produtosSemiacabados',
+    'montadores','clientes','modelosRelogio','pedidosCompra','ordensProducao',
+    'ordensMontagem','expedicoes','historico','ajustes'];
+  listKeys.forEach(k=>{
+    if(!Array.isArray(incoming[k])) return;
+    const atual = db[k] || [];
+    const porId = {}; atual.forEach(item=>{ if(item && item.id) porId[item.id]=item; });
+    incoming[k].forEach(item=>{ if(item && item.id) porId[item.id]=item; });
+    db[k] = Object.values(porId);
+  });
+  const mapKeys = ['estoqueMateriaPrima','estoqueSemiacabados','estoqueAcabados'];
+  mapKeys.forEach(k=>{
+    if(!incoming[k] || typeof incoming[k] !== 'object') return;
+    db[k] = Object.assign({}, db[k]||{}, incoming[k]);
+  });
+}
+
+function renderBackupStatus(){
+  const el = document.getElementById('backup-status'); if(!el) return;
+  try{
+    const meta = JSON.parse(localStorage.getItem(BACKUP_META_KEY) || '{}');
+    el.textContent = meta.lastExport ? ('Último backup exportado em: '+fmtDate(meta.lastExport)) : 'Nenhum backup exportado ainda neste dispositivo.';
+  }catch(e){ el.textContent=''; }
+}
+
+function renderBackupResumo(){
+  const tb = document.getElementById('tbl-backup-resumo'); if(!tb) return;
+  const rows = [
+    ['Fornecedores', db.fornecedores.length],
+    ['Matérias-Primas', db.materiasPrimas.length],
+    ['Produtores', db.produtores.length],
+    ['Produtos Semiacabados', db.produtosSemiacabados.length],
+    ['Montadores', db.montadores.length],
+    ['Clientes', db.clientes.length],
+    ['Modelos de Relógio', db.modelosRelogio.length],
+    ['Pedidos de Compra', db.pedidosCompra.length],
+    ['Ordens de Produção', db.ordensProducao.length],
+    ['Ordens de Montagem', db.ordensMontagem.length],
+    ['Expedições', db.expedicoes.length],
+    ['Histórico', db.historico.length],
+    ['Ajustes', db.ajustes.length],
+  ];
+  tb.innerHTML = rows.map(([label,count])=>`<tr><td>${label}</td><td class="mono">${count}</td></tr>`).join('');
+}
+
+/* ============================= RENDER ALL ============================= */
+function renderAll(){
+  renderDashboard();
+  renderCompras();
+  renderProducao();
+  renderMontagem();
+  renderExpedicao();
+  renderEstoquesReports();
+  renderCadastros();
+  renderAjustes();
+  renderBackupStatus();
+  renderBackupResumo();
+}
+renderAll();
+checkAuth();
+</script>
+</body>
+</html>
